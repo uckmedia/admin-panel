@@ -259,7 +259,19 @@ const CustomerKeys = () => {
                         </div>
                         <div className="mb-4">
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{key.product?.name}</p>
-                            <p className="text-lg font-black text-slate-900 truncate mt-1">{key.api_key}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <p className="text-lg font-black text-slate-900 truncate flex-1">{key.api_key}</p>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(key.api_key);
+                                        alert('Key copied to vault clipboard.');
+                                    }}
+                                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-blue-600"
+                                    title="Copy to Clipboard"
+                                >
+                                    📋
+                                </button>
+                            </div>
                         </div>
                         <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-50">
                             <div>
