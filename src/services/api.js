@@ -29,6 +29,10 @@ const api = {
             method: 'POST',
             body: JSON.stringify({ email, password }),
         }),
+        register: (email, password, full_name) => api.request('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify({ email, password, full_name }),
+        }),
         getProfile: () => api.request('/auth/profile'),
     },
 
