@@ -153,6 +153,7 @@ const AdminApiKeys = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({ user_id: '', product_id: '', duration: '30' });
+    const [generatedResult, setGeneratedResult] = useState(null);
 
     useEffect(() => {
         const loadProducts = async () => {
@@ -170,12 +171,15 @@ const AdminApiKeys = () => {
         expires_at.setDate(expires_at.getDate() + parseInt(formData.duration));
 
         try {
-            await api.admin.createApiKey({
+            const resp = await api.admin.createApiKey({
                 user_id: formData.user_id,
                 product_id: formData.product_id,
                 expires_at: expires_at.toISOString()
             });
-            alert('Key generated with ' + formData.duration + ' day validity.');
+            setGeneratedResult({
+                apiKey: resp.apiKey,
+                apiSecret: resp.apiSecret
+            });
             setIsModalOpen(false);
         } catch (e) { alert(e.message); }
     };
@@ -186,12 +190,38 @@ const AdminApiKeys = () => {
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-black text-slate-900">🔑 License Management</h1>
-                <Button onClick={() => setIsModalOpen(true)}>Generate Key</Button>
+                <Button onClick={() => {
+                    setGeneratedResult(null);
+                    setIsModalOpen(true);
+                }}>Generate Key</Button>
             </div>
 
             <Card title="Security Protocol">
                 <p className="text-slate-500 text-sm">Select user and product to generate a unique HMAC-signed license key. Keys are immutable once generated.</p>
             </Card>
+
+            {generatedResult && (
+                <div className="mt-8 p-6 bg-blue-50 border-2 border-blue-200 rounded-3xl animate-pulse-subtle">
+                    <h3 className="text-blue-900 font-black text-xl mb-4">✨ License Generated Successfully</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white p-4 rounded-2xl border border-blue-100">
+                            <p className="text-[10px] font-black uppercase text-blue-400 mb-1">Public API Key (lk_)</p>
+                            <div className="flex items-center gap-2">
+                                <code className="text-lg font-mono font-bold text-slate-800 break-all">{generatedResult.apiKey}</code>
+                                <button onClick={() => navigator.clipboard.writeText(generatedResult.apiKey)} className="p-2 hover:bg-slate-100 rounded-lg">📋</button>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-orange-100">
+                            <p className="text-[10px] font-black uppercase text-orange-400 mb-1">Secret Key (ls_) - SHOWING ONLY ONCE</p>
+                            <div className="flex items-center gap-2">
+                                <code className="text-lg font-mono font-bold text-orange-600 break-all">{generatedResult.apiSecret}</code>
+                                <button onClick={() => navigator.clipboard.writeText(generatedResult.apiSecret)} className="p-2 hover:bg-slate-100 rounded-lg">📋</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p className="mt-4 text-xs text-blue-600 font-bold">⚠️ CRITICAL: Save the Secret Key now. It is encrypted in our vault and cannot be retrieved later.</p>
+                </div>
+            )}
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Issue License">
                 <div className="space-y-4">
