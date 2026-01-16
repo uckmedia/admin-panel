@@ -42,6 +42,7 @@ const api = {
             const query = new URLSearchParams(params).toString();
             return api.request(`/admin/logs?${query}`);
         },
+        getProducts: () => api.request('/admin/products'),
         createProduct: (data) => api.request('/admin/create-product', {
             method: 'POST',
             body: JSON.stringify(data),

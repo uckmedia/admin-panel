@@ -96,7 +96,7 @@ const ProductsPage = () => {
 
     const loadProducts = async () => {
         try {
-            const resp = await api.customer.getProducts();
+            const resp = await api.admin.getProducts();
             setProducts(resp.data || []);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
@@ -157,7 +157,7 @@ const AdminApiKeys = () => {
     useEffect(() => {
         const loadProducts = async () => {
             try {
-                const resp = await api.customer.getProducts();
+                const resp = await api.admin.getProducts();
                 setProducts(resp.data || []);
             } catch (e) { console.error(e); }
             finally { setLoading(false); }
