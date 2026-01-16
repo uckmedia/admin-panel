@@ -23,93 +23,147 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 };
 
 // =============================================
-// LOGIN PAGE
+// PAGE COMPONENTS
 // =============================================
-const LoginPage = () => {
-    const [isRegister, setIsRegister] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [fullName, setFullName] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { login } = useAuth();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
-            if (isRegister) {
-                await api.auth.register(email, password, fullName);
-                alert('Account created! Now you can login.');
-                setIsRegister(false);
-            } else {
-                const resp = await api.auth.login(email, password);
-                login(resp.token, resp.user);
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+const DashboardPage = ({ setPage }) => {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                const resp = await api.admin.getStats();
+                setStats(resp.stats);
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
+        };
+        loadStats();
+    }, []);
+
+    if (loading) return <div className="p-12 text-center text-slate-500">Scanning security node...</div>;
+
+    const statCards = [
+        { label: 'Identified Users', value: stats?.total_users || 0, icon: '👥' },
+        { label: 'Active Licenses', value: stats?.active_api_keys || 0, icon: '🔑' },
+        { label: 'Total Revenue', value: stats?.paid_orders || 0, icon: '💰', suffix: ' Orders' },
+        { label: 'Daily Validations', value: stats?.validations_today || 0, icon: '🛡️' },
+    ];
 
     return (
-        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
-            <Card className="w-full max-w-md bg-slate-900 border-none shadow-blue-500/10 shadow-2xl">
-                <div className="text-center mb-10">
-                    <div className="text-6xl mb-4">🛡️</div>
-                    <h1 className="text-3xl font-black text-white tracking-tight">License.io</h1>
-                    <p className="text-slate-400 mt-2">{isRegister ? 'Create Account' : 'Professional Control Node'}</p>
-                </div>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {isRegister && (
-                        <Input label="Full Name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="bg-slate-800 border-slate-700 text-white" />
-                    )}
-                    <Input label="Identity (Email)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@test.com" className="bg-slate-800 border-slate-700 text-white" />
-                    <Input label="Access Key (Password)" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="bg-slate-800 border-slate-700 text-white" />
-                    {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">⚠️ {error}</div>}
-                    <Button type="submit" className="w-full py-4 font-bold shadow-lg shadow-blue-600/20" disabled={loading}>
-                        {loading ? 'Processing...' : (isRegister ? 'Sign Up' : 'Authenticate')}
-                    </Button>
-                </form>
-                <div className="mt-8 text-center text-sm text-slate-400">
-                    {isRegister ? 'Already have an account?' : "Don't have an account?"}
-                    <button onClick={() => setIsRegister(!isRegister)} className="ml-2 text-blue-500 font-bold hover:underline">
-                        {isRegister ? 'Login Here' : 'Create Account'}
-                    </button>
-                </div>
-            </Card>
+        <div className="p-8 max-w-7xl mx-auto">
+            <h1 className="text-3xl font-black text-slate-900 mb-8">System Overview</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                {statCards.map((s, i) => (
+                    <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4">
+                            <div className="text-4xl">{s.icon}</div>
+                            <div>
+                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{s.label}</p>
+                                <p className="text-2xl font-black text-slate-900">{s.value}{s.suffix}</p>
+                            </div>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Card title="Quick Actions" className="lg:col-span-1">
+                    <div className="space-y-3">
+                        <Button className="w-full text-left justify-start" onClick={() => setPage('products')}>📦 Manage Products</Button>
+                        <Button className="w-full text-left justify-start" onClick={() => setPage('admin-keys')}>🔑 Issue License</Button>
+                        <Button className="w-full text-left justify-start" variant="secondary" onClick={() => setPage('logs')}>📝 Security Logs</Button>
+                    </div>
+                </Card>
+                <Card title="System Intelligence" className="lg:col-span-2">
+                    <p className="text-slate-500 text-sm mb-4">Centralised licensing engine is operating normally. All signatures are valid and encryption nodes are healthy.</p>
+                    <div className="h-40 bg-slate-50 rounded-2xl flex items-center justify-center border border-dashed border-slate-200 text-slate-400 italic">
+                        Real-time analytics chart loading...
+                    </div>
+                </Card>
+            </div>
         </div>
     );
 };
 
-// =============================================
-// ADMIN PAGES
-// =============================================
+const ProductsPage = () => {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [formData, setFormData] = useState({ name: '', slug: '', category: 'Software', description: '' });
+
+    useEffect(() => { loadProducts(); }, []);
+
+    const loadProducts = async () => {
+        try {
+            const resp = await api.customer.getProducts();
+            setProducts(resp.data || []);
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    };
+
+    const handleCreate = async () => {
+        try {
+            await api.admin.createProduct(formData);
+            alert('Product synchronised successfully.');
+            setIsModalOpen(false);
+            loadProducts();
+        } catch (e) { alert(e.message); }
+    };
+
+    if (loading) return <div className="p-12 text-center text-slate-500">Indexing product catalog...</div>;
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-black text-slate-900">📦 Catalog</h1>
+                <Button onClick={() => setIsModalOpen(true)}>Register Project</Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map(p => (
+                    <Card key={p.id} className="group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-3 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-tighter rounded-bl-xl">
+                            {p.category}
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900 mb-2 truncate pr-16">{p.name}</h3>
+                        <p className="text-slate-500 text-sm h-10 overflow-hidden text-ellipsis mb-4">{p.description}</p>
+                        <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <code className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500">{p.slug}</code>
+                            <p className="text-[10px] text-slate-300 font-bold uppercase">Secret Active</p>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Register New Project">
+                <div className="space-y-4">
+                    <Input label="Project Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Photoshop 2024" />
+                    <Input label="Slug (ID)" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="e.g. ps-2024" />
+                    <Input label="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Brief utility overview" />
+                    <Button onClick={handleCreate} className="w-full py-4 mt-2">Initialize Product</Button>
+                </div>
+            </Modal>
+        </div>
+    );
+};
 
 const AdminApiKeys = () => {
-    const [keys, setKeys] = useState([]);
+    const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({ user_id: '', product_id: '', duration: '30' });
 
-    // Real apps would fetch users and products lists
-    const [products, setProducts] = useState([]);
-
-    useEffect(() => { loadData(); }, []);
-
-    const loadData = async () => {
-        try {
-            const [keysResp, prodResp] = await Promise.all([
-                api.admin.getLogs({ limit: 50 }), // Using logs as placeholder for keys list if needed
-                api.customer.getProducts()
-            ]);
-            setProducts(prodResp.data || []);
-            // Should fetch actual keys from an admin endpoint like /admin/apikeys
-            setLoading(false);
-        } catch (e) { console.error(e); }
-    };
+    useEffect(() => {
+        const loadProducts = async () => {
+            try {
+                const resp = await api.customer.getProducts();
+                setProducts(resp.data || []);
+            } catch (e) { console.error(e); }
+            finally { setLoading(false); }
+        };
+        loadProducts();
+    }, []);
 
     const handleCreate = async () => {
         const expires_at = new Date();
@@ -126,6 +180,8 @@ const AdminApiKeys = () => {
         } catch (e) { alert(e.message); }
     };
 
+    if (loading) return <div className="p-12 text-center text-slate-500">Accessing license node...</div>;
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
@@ -133,16 +189,13 @@ const AdminApiKeys = () => {
                 <Button onClick={() => setIsModalOpen(true)}>Generate Key</Button>
             </div>
 
-            <Card title="Issue New License">
-                <p className="text-slate-500 text-sm">Select user and product to generate a unique HMAC-signed license key.</p>
+            <Card title="Security Protocol">
+                <p className="text-slate-500 text-sm">Select user and product to generate a unique HMAC-signed license key. Keys are immutable once generated.</p>
             </Card>
 
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Issue License">
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-xs font-bold uppercase text-slate-400 block mb-2">Target User ID</label>
-                        <input value={formData.user_id} onChange={e => setFormData({ ...formData, user_id: e.target.value })} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none" placeholder="UUID of customer" />
-                    </div>
+                    <Input label="Target User ID" value={formData.user_id} onChange={e => setFormData({ ...formData, user_id: e.target.value })} placeholder="UUID of customer" />
                     <div>
                         <label className="text-xs font-bold uppercase text-slate-400 block mb-2">Product</label>
                         <select value={formData.product_id} onChange={e => setFormData({ ...formData, product_id: e.target.value })} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none">
@@ -166,10 +219,6 @@ const AdminApiKeys = () => {
         </div>
     );
 };
-
-// =============================================
-// CUSTOMER PAGES
-// =============================================
 
 const CustomerKeys = () => {
     const [keys, setKeys] = useState([]);
@@ -197,11 +246,11 @@ const CustomerKeys = () => {
         } catch (e) { alert(e.message); }
     };
 
-    if (loading) return <div className="p-12 text-center">Identifying assets...</div>;
+    if (loading) return <div className="p-12 text-center text-slate-500">Accessing vault...</div>;
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            <h2 className="text-3xl font-black mb-8">💎 My Licenses</h2>
+            <h2 className="text-3xl font-black mb-8 text-slate-900">💎 My Licenses</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {keys.map(key => (
                     <Card key={key.id} className="relative overflow-hidden group">
@@ -221,14 +270,14 @@ const CustomerKeys = () => {
                         </div>
                     </Card>
                 ))}
-                {keys.length === 0 && <Card className="p-12 text-center text-slate-400 col-span-2">No active licenses found in your catalog.</Card>}
+                {keys.length === 0 && <Card className="p-12 text-center text-slate-400 col-span-2">No active licenses identified in your node.</Card>}
             </div>
 
             <Modal isOpen={!!selectedKey} onClose={() => setSelectedKey(null)} title="Security Configuration">
                 <div className="space-y-4">
                     <p className="text-sm text-slate-500">Add authorized domains where this license can be verified. Use commas for multiple entries.</p>
                     <Input label="Allowed Domains" value={domains} onChange={e => setDomains(e.target.value)} placeholder="example.com, localhost" />
-                    <Button onClick={handleUpdate} className="w-full py-4 uppercase font-black text-xs tracking-widest">Seal Configuration</Button>
+                    <Button onClick={handleUpdate} className="w-full py-4 uppercase font-black text-xs tracking-widest text-white">Seal Configuration</Button>
                 </div>
             </Modal>
         </div>
@@ -236,23 +285,74 @@ const CustomerKeys = () => {
 };
 
 // =============================================
-// LAYOUT & ROUTING
+// AUTH & ROUTING
 // =============================================
+
+const LoginPage = () => {
+    const [isRegister, setIsRegister] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { login } = useAuth();
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            if (isRegister) {
+                await api.auth.register(email, password, fullName);
+                alert('Account created! Now you can login.');
+                setIsRegister(false);
+            } else {
+                const resp = await api.auth.login(email, password);
+                login(resp.token, resp.user);
+            }
+        } catch (err) { setError(err.message); }
+        finally { setLoading(false); }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
+            <Card className="w-full max-w-md bg-slate-900 border-none shadow-blue-500/10 shadow-2xl">
+                <div className="text-center mb-10">
+                    <div className="text-6xl mb-4">🛡️</div>
+                    <h1 className="text-3xl font-black text-white tracking-tight">License.io</h1>
+                    <p className="text-slate-400 mt-2">{isRegister ? 'New Account Registration' : 'Professional Control Node'}</p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {isRegister && (
+                        <Input label="Full Name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="bg-slate-800 border-slate-700 text-white" />
+                    )}
+                    <Input label="Identity (Email)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@test.com" className="bg-slate-800 border-slate-700 text-white" />
+                    <Input label="Access Key (Password)" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="bg-slate-800 border-slate-700 text-white" />
+                    {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">⚠️ {error}</div>}
+                    <Button type="submit" className="w-full py-4 font-bold shadow-lg shadow-blue-600/20">
+                        {loading ? 'Processing...' : (isRegister ? 'Sign Up' : 'Authenticate')}
+                    </Button>
+                </form>
+                <div className="mt-8 text-center text-sm text-slate-400">
+                    {isRegister ? 'Already have an account?' : "Don't have an account?"}
+                    <button onClick={() => setIsRegister(!isRegister)} className="ml-2 text-blue-500 font-bold hover:underline">
+                        {isRegister ? 'Login Here' : 'Create Account'}
+                    </button>
+                </div>
+            </Card>
+        </div>
+    );
+};
 
 const Sidebar = ({ page, setPage }) => {
     const { user, logout } = useAuth();
-
     const adminMenu = [
         { id: 'dashboard', label: 'Monitor', icon: '📊' },
         { id: 'products', label: 'Products', icon: '📦' },
         { id: 'admin-keys', label: 'Issue Keys', icon: '🔑' },
         { id: 'logs', label: 'Security Logs', icon: '📝' },
     ];
-
-    const customerMenu = [
-        { id: 'customer-keys', label: 'My Licenses', icon: '💎' },
-    ];
-
+    const customerMenu = [{ id: 'customer-keys', label: 'My Licenses', icon: '💎' }];
     const menu = user?.role === 'admin' ? adminMenu : customerMenu;
 
     return (
@@ -268,11 +368,7 @@ const Sidebar = ({ page, setPage }) => {
             </div>
             <nav className="flex-1 p-6 space-y-2 mt-4">
                 {menu.map(item => (
-                    <button
-                        key={item.id}
-                        onClick={() => setPage(item.id)}
-                        className={`w-full text-left px-5 py-4 rounded-2xl flex items-center gap-4 transition-all duration-300 ${page === item.id ? 'bg-blue-600 shadow-xl shadow-blue-600/20 text-white' : 'hover:bg-slate-800 text-slate-400'}`}
-                    >
+                    <button key={item.id} onClick={() => setPage(item.id)} className={`w-full text-left px-5 py-4 rounded-2xl flex items-center gap-4 transition-all duration-300 ${page === item.id ? 'bg-blue-600 shadow-xl shadow-blue-600/20 text-white' : 'hover:bg-slate-800 text-slate-400'}`}>
                         <span className="text-xl">{item.icon}</span>
                         <span className="text-sm font-bold">{item.label}</span>
                     </button>
@@ -296,9 +392,9 @@ const PageRenderer = ({ page, setPage }) => {
         case 'dashboard': return <DashboardPage setPage={setPage} />;
         case 'products': return <ProductsPage />;
         case 'admin-keys': return <AdminApiKeys />;
-        case 'logs': return <div className="p-8">Work in progress: Advanced logging visuals...</div>;
+        case 'logs': return <div className="p-8 text-slate-400 italic">Advanced security logs are under construction.</div>;
         case 'customer-keys': return <CustomerKeys />;
-        default: return <div className="p-12 text-center text-slate-400">Select an operation from the node interface.</div>;
+        default: return <div className="p-12 text-center text-slate-400">Identify a node operation to proceed.</div>;
     }
 };
 
