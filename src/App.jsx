@@ -26,8 +26,10 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 // LOGIN PAGE
 // =============================================
 const LoginPage = () => {
+    const [isRegister, setIsRegister] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [fullName, setFullName] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
@@ -35,11 +37,21 @@ const LoginPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setError('');
         try {
-            const resp = await api.auth.login(email, password);
-            login(resp.token, resp.user);
-        } catch (err) { setError(err.message); }
-        finally { setLoading(false); }
+            if (isRegister) {
+                await api.auth.register(email, password, fullName);
+                alert('Account created! Now you can login.');
+                setIsRegister(false);
+            } else {
+                const resp = await api.auth.login(email, password);
+                login(resp.token, resp.user);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -48,18 +60,24 @@ const LoginPage = () => {
                 <div className="text-center mb-10">
                     <div className="text-6xl mb-4">🛡️</div>
                     <h1 className="text-3xl font-black text-white tracking-tight">License.io</h1>
-                    <p className="text-slate-400 mt-2">Professional Control Node</p>
+                    <p className="text-slate-400 mt-2">{isRegister ? 'Create Account' : 'Professional Control Node'}</p>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input label="Identity" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@test.com" className="bg-slate-800 border-slate-700 text-white" />
-                    <Input label="Access Key" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="bg-slate-800 border-slate-700 text-white" />
+                    {isRegister && (
+                        <Input label="Full Name" type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Doe" className="bg-slate-800 border-slate-700 text-white" />
+                    )}
+                    <Input label="Identity (Email)" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@test.com" className="bg-slate-800 border-slate-700 text-white" />
+                    <Input label="Access Key (Password)" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="bg-slate-800 border-slate-700 text-white" />
                     {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-xl">⚠️ {error}</div>}
                     <Button type="submit" className="w-full py-4 font-bold shadow-lg shadow-blue-600/20" disabled={loading}>
-                        {loading ? 'Decrypting...' : 'Authenticate'}
+                        {loading ? 'Processing...' : (isRegister ? 'Sign Up' : 'Authenticate')}
                     </Button>
                 </form>
-                <div className="mt-8 p-4 bg-slate-800/50 rounded-2xl text-center text-xs text-slate-500 border border-slate-700">
-                    Demo: admin@example.com / Admin123!
+                <div className="mt-8 text-center text-sm text-slate-400">
+                    {isRegister ? 'Already have an account?' : "Don't have an account?"}
+                    <button onClick={() => setIsRegister(!isRegister)} className="ml-2 text-blue-500 font-bold hover:underline">
+                        {isRegister ? 'Login Here' : 'Create Account'}
+                    </button>
                 </div>
             </Card>
         </div>
